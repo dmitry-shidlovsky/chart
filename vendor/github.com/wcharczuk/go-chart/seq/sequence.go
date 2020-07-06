@@ -1,28 +1,33 @@
-package chart
+package seq
 
 import (
 	"math"
 	"sort"
 )
 
-// ValueSequence returns a sequence for a given values set.
-func ValueSequence(values ...float64) Seq {
-	return Seq{NewArray(values...)}
+// New wraps a provider with a seq.
+func New(provider Provider) Seq {
+	return Seq{Provider: provider}
 }
 
-// Sequence is a provider for values for a seq.
-type Sequence interface {
+// Values returns a new seq composed of a given set of values.
+func Values(values ...float64) Seq {
+	return Seq{Provider: Array(values)}
+}
+
+// Provider is a provider for values for a seq.
+type Provider interface {
 	Len() int
 	GetValue(int) float64
 }
 
 // Seq is a utility wrapper for seq providers.
 type Seq struct {
-	Sequence
+	Provider
 }
 
-// Values enumerates the seq into a slice.
-func (s Seq) Values() (output []float64) {
+// Array enumerates the seq into a slice.
+func (s Seq) Array() (output []float64) {
 	if s.Len() == 0 {
 		return
 	}
@@ -143,30 +148,9 @@ func (s Seq) Sort() Seq {
 	if s.Len() == 0 {
 		return s
 	}
-	values := s.Values()
+	values := s.Array()
 	sort.Float64s(values)
-	return Seq{Array(values)}
-}
-
-// Reverse reverses the sequence
-func (s Seq) Reverse() Seq {
-	if s.Len() == 0 {
-		return s
-	}
-
-	values := s.Values()
-	valuesLen := len(values)
-	valuesLen1 := len(values) - 1
-	valuesLen2 := valuesLen >> 1
-	var i, j float64
-	for index := 0; index < valuesLen2; index++ {
-		i = values[index]
-		j = values[valuesLen1-index]
-		values[index] = j
-		values[valuesLen1-index] = i
-	}
-
-	return Seq{Array(values)}
+	return Seq{Provider: Array(values)}
 }
 
 // Median returns the median or middle value in the sorted seq.
@@ -271,5 +255,5 @@ func (s Seq) Normalize() Seq {
 		output[i] = (s.GetValue(i) - min) / delta
 	}
 
-	return Seq{Array(output)}
+	return Seq{Provider: Array(output)}
 }

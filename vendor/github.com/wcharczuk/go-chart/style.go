@@ -6,6 +6,7 @@ import (
 
 	"github.com/golang/freetype/truetype"
 	"github.com/wcharczuk/go-chart/drawing"
+	"github.com/wcharczuk/go-chart/util"
 )
 
 const (
@@ -14,18 +15,10 @@ const (
 	Disabled = -1
 )
 
-// Hidden is a prebuilt style with the `Hidden` property set to true.
-func Hidden() Style {
+// StyleShow is a prebuilt style with the `Show` property set to true.
+func StyleShow() Style {
 	return Style{
-		Hidden: true,
-	}
-}
-
-// Shown is a prebuilt style with the `Hidden` property set to false.
-// You can also think of this as the default.
-func Shown() Style {
-	return Style{
-		Hidden: false,
+		Show: true,
 	}
 }
 
@@ -34,7 +27,7 @@ func Shown() Style {
 func StyleTextDefaults() Style {
 	font, _ := GetDefaultFont()
 	return Style{
-		Hidden:    false,
+		Show:      true,
 		Font:      font,
 		FontColor: DefaultTextColor,
 		FontSize:  DefaultTitleFontSize,
@@ -43,10 +36,8 @@ func StyleTextDefaults() Style {
 
 // Style is a simple style set.
 type Style struct {
-	Hidden  bool
+	Show    bool
 	Padding Box
-
-	ClassName string
 
 	StrokeWidth     float64
 	StrokeColor     drawing.Color
@@ -73,16 +64,14 @@ type Style struct {
 
 // IsZero returns if the object is set or not.
 func (s Style) IsZero() bool {
-	return !s.Hidden &&
-		s.StrokeColor.IsZero() &&
+	return s.StrokeColor.IsZero() &&
 		s.StrokeWidth == 0 &&
 		s.DotColor.IsZero() &&
 		s.DotWidth == 0 &&
 		s.FillColor.IsZero() &&
 		s.FontColor.IsZero() &&
 		s.FontSize == 0 &&
-		s.Font == nil &&
-		s.ClassName == ""
+		s.Font == nil
 }
 
 // String returns a text representation of the style.
@@ -92,16 +81,10 @@ func (s Style) String() string {
 	}
 
 	var output []string
-	if s.Hidden {
-		output = []string{"\"hidden\": true"}
+	if s.Show {
+		output = []string{"\"show\": true"}
 	} else {
-		output = []string{"\"hidden\": false"}
-	}
-
-	if s.ClassName != "" {
-		output = append(output, fmt.Sprintf("\"class_name\": %s", s.ClassName))
-	} else {
-		output = append(output, "\"class_name\": null")
+		output = []string{"\"show\": false"}
 	}
 
 	if !s.Padding.IsZero() {
@@ -170,17 +153,6 @@ func (s Style) String() string {
 	}
 
 	return "{" + strings.Join(output, ", ") + "}"
-}
-
-// GetClassName returns the class name or a default.
-func (s Style) GetClassName(defaults ...string) string {
-	if s.ClassName == "" {
-		if len(defaults) > 0 {
-			return defaults[0]
-		}
-		return ""
-	}
-	return s.ClassName
 }
 
 // GetStrokeColor returns the stroke color.
@@ -349,7 +321,6 @@ func (s Style) GetTextRotationDegrees(defaults ...float64) float64 {
 
 // WriteToRenderer passes the style's options to a renderer.
 func (s Style) WriteToRenderer(r Renderer) {
-	r.SetClassName(s.GetClassName())
 	r.SetStrokeColor(s.GetStrokeColor())
 	r.SetStrokeWidth(s.GetStrokeWidth())
 	r.SetStrokeDashArray(s.GetStrokeDashArray())
@@ -360,13 +331,12 @@ func (s Style) WriteToRenderer(r Renderer) {
 
 	r.ClearTextRotation()
 	if s.GetTextRotationDegrees() != 0 {
-		r.SetTextRotation(DegreesToRadians(s.GetTextRotationDegrees()))
+		r.SetTextRotation(util.Math.DegreesToRadians(s.GetTextRotationDegrees()))
 	}
 }
 
 // WriteDrawingOptionsToRenderer passes just the drawing style options to a renderer.
 func (s Style) WriteDrawingOptionsToRenderer(r Renderer) {
-	r.SetClassName(s.GetClassName())
 	r.SetStrokeColor(s.GetStrokeColor())
 	r.SetStrokeWidth(s.GetStrokeWidth())
 	r.SetStrokeDashArray(s.GetStrokeDashArray())
@@ -375,7 +345,6 @@ func (s Style) WriteDrawingOptionsToRenderer(r Renderer) {
 
 // WriteTextOptionsToRenderer passes just the text style options to a renderer.
 func (s Style) WriteTextOptionsToRenderer(r Renderer) {
-	r.SetClassName(s.GetClassName())
 	r.SetFont(s.GetFont())
 	r.SetFontColor(s.GetFontColor())
 	r.SetFontSize(s.GetFontSize())
@@ -383,8 +352,6 @@ func (s Style) WriteTextOptionsToRenderer(r Renderer) {
 
 // InheritFrom coalesces two styles into a new style.
 func (s Style) InheritFrom(defaults Style) (final Style) {
-	final.ClassName = s.GetClassName(defaults.ClassName)
-
 	final.StrokeColor = s.GetStrokeColor(defaults.StrokeColor)
 	final.StrokeWidth = s.GetStrokeWidth(defaults.StrokeWidth)
 	final.StrokeDashArray = s.GetStrokeDashArray(defaults.StrokeDashArray)
@@ -412,7 +379,6 @@ func (s Style) InheritFrom(defaults Style) (final Style) {
 // GetStrokeOptions returns the stroke components.
 func (s Style) GetStrokeOptions() Style {
 	return Style{
-		ClassName:       s.ClassName,
 		StrokeDashArray: s.StrokeDashArray,
 		StrokeColor:     s.StrokeColor,
 		StrokeWidth:     s.StrokeWidth,
@@ -422,7 +388,6 @@ func (s Style) GetStrokeOptions() Style {
 // GetFillOptions returns the fill components.
 func (s Style) GetFillOptions() Style {
 	return Style{
-		ClassName: s.ClassName,
 		FillColor: s.FillColor,
 	}
 }
@@ -430,7 +395,6 @@ func (s Style) GetFillOptions() Style {
 // GetDotOptions returns the dot components.
 func (s Style) GetDotOptions() Style {
 	return Style{
-		ClassName:       s.ClassName,
 		StrokeDashArray: nil,
 		FillColor:       s.DotColor,
 		StrokeColor:     s.DotColor,
@@ -441,7 +405,6 @@ func (s Style) GetDotOptions() Style {
 // GetFillAndStrokeOptions returns the fill and stroke components.
 func (s Style) GetFillAndStrokeOptions() Style {
 	return Style{
-		ClassName:       s.ClassName,
 		StrokeDashArray: s.StrokeDashArray,
 		FillColor:       s.FillColor,
 		StrokeColor:     s.StrokeColor,
@@ -452,7 +415,6 @@ func (s Style) GetFillAndStrokeOptions() Style {
 // GetTextOptions returns just the text components of the style.
 func (s Style) GetTextOptions() Style {
 	return Style{
-		ClassName:           s.ClassName,
 		FontColor:           s.FontColor,
 		FontSize:            s.FontSize,
 		Font:                s.Font,

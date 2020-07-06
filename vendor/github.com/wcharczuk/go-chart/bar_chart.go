@@ -7,6 +7,7 @@ import (
 	"math"
 
 	"github.com/golang/freetype/truetype"
+	util "github.com/wcharczuk/go-chart/util"
 )
 
 // BarChart is a chart that draws bars on a range.
@@ -29,9 +30,6 @@ type BarChart struct {
 	YAxis YAxis
 
 	BarSpacing int
-
-	UseBaseValue bool
-	BaseValue    float64
 
 	Font        *truetype.Font
 	defaultFont *truetype.Font
@@ -201,20 +199,11 @@ func (bc BarChart) drawBars(r Renderer, canvasBox Box, yr Range) {
 
 		by = canvasBox.Bottom - yr.Translate(bar.Value)
 
-		if bc.UseBaseValue {
-			barBox = Box{
-				Top:    by,
-				Left:   bxl,
-				Right:  bxr,
-				Bottom: canvasBox.Bottom - yr.Translate(bc.BaseValue),
-			}
-		} else {
-			barBox = Box{
-				Top:    by,
-				Left:   bxl,
-				Right:  bxr,
-				Bottom: canvasBox.Bottom,
-			}
+		barBox = Box{
+			Top:    by,
+			Left:   bxl,
+			Right:  bxr,
+			Bottom: canvasBox.Bottom,
 		}
 
 		Draw.Box(r, barBox, bar.Style.InheritFrom(bc.styleDefaultsBar(index)))
@@ -224,7 +213,7 @@ func (bc BarChart) drawBars(r Renderer, canvasBox Box, yr Range) {
 }
 
 func (bc BarChart) drawXAxis(r Renderer, canvasBox Box) {
-	if !bc.XAxis.Hidden {
+	if bc.XAxis.Show {
 		axisStyle := bc.XAxis.InheritFrom(bc.styleDefaultsAxes())
 		axisStyle.WriteToRenderer(r)
 
@@ -263,7 +252,7 @@ func (bc BarChart) drawXAxis(r Renderer, canvasBox Box) {
 }
 
 func (bc BarChart) drawYAxis(r Renderer, canvasBox Box, yr Range, ticks []Tick) {
-	if !bc.YAxis.Style.Hidden {
+	if bc.YAxis.Style.Show {
 		axisStyle := bc.YAxis.Style.InheritFrom(bc.styleDefaultsAxes())
 		axisStyle.WriteToRenderer(r)
 
@@ -294,7 +283,7 @@ func (bc BarChart) drawYAxis(r Renderer, canvasBox Box, yr Range, ticks []Tick) 
 }
 
 func (bc BarChart) drawTitle(r Renderer) {
-	if len(bc.Title) > 0 && !bc.TitleStyle.Hidden {
+	if len(bc.Title) > 0 && bc.TitleStyle.Show {
 		r.SetFont(bc.TitleStyle.GetFont(bc.GetFont()))
 		r.SetFontColor(bc.TitleStyle.GetFontColor(bc.GetColorPalette().TextColor()))
 		titleFontSize := bc.TitleStyle.GetFontSize(bc.getTitleFontSize())
@@ -325,7 +314,7 @@ func (bc BarChart) styleDefaultsCanvas() Style {
 }
 
 func (bc BarChart) hasAxes() bool {
-	return !bc.YAxis.Style.Hidden
+	return bc.YAxis.Style.Show
 }
 
 func (bc BarChart) setRangeDomains(canvasBox Box, yr Range) Range {
@@ -345,7 +334,7 @@ func (bc BarChart) getValueFormatters() ValueFormatter {
 }
 
 func (bc BarChart) getAxesTicks(r Renderer, yr Range, yf ValueFormatter) (yticks []Tick) {
-	if !bc.YAxis.Style.Hidden {
+	if bc.YAxis.Style.Show {
 		yticks = bc.YAxis.GetTicks(r, yr, bc.styleDefaultsAxes(), yf)
 	}
 	return
@@ -391,7 +380,7 @@ func (bc BarChart) getAdjustedCanvasBox(r Renderer, canvasBox Box, yrange Range,
 
 	_, _, totalWidth := bc.calculateScaledTotalWidth(canvasBox)
 
-	if !bc.XAxis.Hidden {
+	if bc.XAxis.Show {
 		xaxisHeight := DefaultVerticalTickHeight
 
 		axisStyle := bc.XAxis.InheritFrom(bc.styleDefaultsAxes())
@@ -409,7 +398,7 @@ func (bc BarChart) getAdjustedCanvasBox(r Renderer, canvasBox Box, yrange Range,
 				lines := Text.WrapFit(r, bar.Label, barLabelBox.Width(), axisStyle)
 				linesBox := Text.MeasureLines(r, lines, axisStyle)
 
-				xaxisHeight = MinInt(linesBox.Height()+(2*DefaultXAxisMargin), xaxisHeight)
+				xaxisHeight = util.Math.MinInt(linesBox.Height()+(2*DefaultXAxisMargin), xaxisHeight)
 			}
 		}
 
@@ -423,7 +412,7 @@ func (bc BarChart) getAdjustedCanvasBox(r Renderer, canvasBox Box, yrange Range,
 		axesOuterBox = axesOuterBox.Grow(xbox)
 	}
 
-	if !bc.YAxis.Style.Hidden {
+	if bc.YAxis.Style.Show {
 		axesBounds := bc.YAxis.Measure(r, canvasBox, yrange, bc.styleDefaultsAxes(), yticks)
 		axesOuterBox = axesOuterBox.Grow(axesBounds)
 	}
@@ -476,7 +465,7 @@ func (bc BarChart) styleDefaultsTitle() Style {
 }
 
 func (bc BarChart) getTitleFontSize() float64 {
-	effectiveDimension := MinInt(bc.GetWidth(), bc.GetHeight())
+	effectiveDimension := util.Math.MinInt(bc.GetWidth(), bc.GetHeight())
 	if effectiveDimension >= 2048 {
 		return 48
 	} else if effectiveDimension >= 1024 {

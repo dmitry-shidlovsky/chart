@@ -1,4 +1,4 @@
-package chart
+package seq
 
 import (
 	"math"
@@ -6,29 +6,25 @@ import (
 	"time"
 )
 
-var (
-	_ Sequence = (*RandomSeq)(nil)
-)
-
 // RandomValues returns an array of random values.
 func RandomValues(count int) []float64 {
-	return Seq{NewRandomSequence().WithLen(count)}.Values()
+	return Seq{NewRandom().WithLen(count)}.Array()
 }
 
 // RandomValuesWithMax returns an array of random values with a given average.
 func RandomValuesWithMax(count int, max float64) []float64 {
-	return Seq{NewRandomSequence().WithMax(max).WithLen(count)}.Values()
+	return Seq{NewRandom().WithMax(max).WithLen(count)}.Array()
 }
 
-// NewRandomSequence creates a new random seq.
-func NewRandomSequence() *RandomSeq {
-	return &RandomSeq{
+// NewRandom creates a new random seq.
+func NewRandom() *Random {
+	return &Random{
 		rnd: rand.New(rand.NewSource(time.Now().Unix())),
 	}
 }
 
-// RandomSeq is a random number seq generator.
-type RandomSeq struct {
+// Random is a random number seq generator.
+type Random struct {
 	rnd *rand.Rand
 	max *float64
 	min *float64
@@ -36,7 +32,7 @@ type RandomSeq struct {
 }
 
 // Len returns the number of elements that will be generated.
-func (r *RandomSeq) Len() int {
+func (r *Random) Len() int {
 	if r.len != nil {
 		return *r.len
 	}
@@ -44,7 +40,7 @@ func (r *RandomSeq) Len() int {
 }
 
 // GetValue returns the value.
-func (r *RandomSeq) GetValue(_ int) float64 {
+func (r *Random) GetValue(_ int) float64 {
 	if r.min != nil && r.max != nil {
 		var delta float64
 
@@ -64,29 +60,29 @@ func (r *RandomSeq) GetValue(_ int) float64 {
 }
 
 // WithLen sets a maximum len
-func (r *RandomSeq) WithLen(length int) *RandomSeq {
+func (r *Random) WithLen(length int) *Random {
 	r.len = &length
 	return r
 }
 
 // Min returns the minimum value.
-func (r RandomSeq) Min() *float64 {
+func (r Random) Min() *float64 {
 	return r.min
 }
 
 // WithMin sets the scale and returns the Random.
-func (r *RandomSeq) WithMin(min float64) *RandomSeq {
+func (r *Random) WithMin(min float64) *Random {
 	r.min = &min
 	return r
 }
 
 // Max returns the maximum value.
-func (r RandomSeq) Max() *float64 {
+func (r Random) Max() *float64 {
 	return r.max
 }
 
 // WithMax sets the average and returns the Random.
-func (r *RandomSeq) WithMax(max float64) *RandomSeq {
+func (r *Random) WithMax(max float64) *Random {
 	r.max = &max
 	return r
 }

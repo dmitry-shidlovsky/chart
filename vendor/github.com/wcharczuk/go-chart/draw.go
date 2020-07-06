@@ -2,6 +2,8 @@ package chart
 
 import (
 	"math"
+
+	util "github.com/wcharczuk/go-chart/util"
 )
 
 var (
@@ -38,8 +40,8 @@ func (d draw) LineSeries(r Renderer, canvasBox Box, xrange, yrange Range, style 
 			y = cb - yrange.Translate(vy)
 			r.LineTo(x, y)
 		}
-		r.LineTo(x, MinInt(cb, cb-yv0))
-		r.LineTo(x0, MinInt(cb, cb-yv0))
+		r.LineTo(x, util.Math.MinInt(cb, cb-yv0))
+		r.LineTo(x0, util.Math.MinInt(cb, cb-yv0))
 		r.LineTo(x0, y0)
 		r.Fill()
 	}
@@ -296,10 +298,8 @@ func (d draw) TextWithin(r Renderer, text string, box Box, style Style) {
 	switch style.GetTextVerticalAlign() {
 	case TextVerticalAlignBottom, TextVerticalAlignBaseline: // i have to build better baseline handling into measure text
 		y = y - linesBox.Height()
-	case TextVerticalAlignMiddle:
-		y = y + (box.Height() >> 1) - (linesBox.Height() >> 1)
-	case TextVerticalAlignMiddleBaseline:
-		y = y + (box.Height() >> 1) - linesBox.Height()
+	case TextVerticalAlignMiddle, TextVerticalAlignMiddleBaseline:
+		y = (y - linesBox.Height()) >> 1
 	}
 
 	var tx, ty int

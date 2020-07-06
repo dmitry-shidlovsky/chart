@@ -1,11 +1,6 @@
-package chart
+package seq
 
-var (
-	_ Sequence = (*Array)(nil)
-)
-
-// NewArray returns a new array from a given set of values.
-// Array implements Sequence, which allows it to be used with the sequence helpers.
+// NewArray creates a new array.
 func NewArray(values ...float64) Array {
 	return Array(values)
 }

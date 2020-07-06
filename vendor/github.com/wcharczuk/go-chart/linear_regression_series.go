@@ -2,14 +2,9 @@ package chart
 
 import (
 	"fmt"
-)
 
-// Interface Assertions.
-var (
-	_ Series                    = (*LinearRegressionSeries)(nil)
-	_ FirstValuesProvider       = (*LinearRegressionSeries)(nil)
-	_ LastValuesProvider        = (*LinearRegressionSeries)(nil)
-	_ LinearCoefficientProvider = (*LinearRegressionSeries)(nil)
+	"github.com/wcharczuk/go-chart/seq"
+	util "github.com/wcharczuk/go-chart/util"
 )
 
 // LinearRegressionSeries is a series that plots the n-nearest neighbors
@@ -29,19 +24,6 @@ type LinearRegressionSeries struct {
 	stddevx float64
 }
 
-// Coefficients returns the linear coefficients for the series.
-func (lrs LinearRegressionSeries) Coefficients() (m, b, stdev, avg float64) {
-	if lrs.IsZero() {
-		lrs.computeCoefficients()
-	}
-
-	m = lrs.m
-	b = lrs.b
-	stdev = lrs.stddevx
-	avg = lrs.avgx
-	return
-}
-
 // GetName returns the name of the time series.
 func (lrs LinearRegressionSeries) GetName() string {
 	return lrs.Name
@@ -59,7 +41,7 @@ func (lrs LinearRegressionSeries) GetYAxis() YAxisType {
 
 // Len returns the number of elements in the series.
 func (lrs LinearRegressionSeries) Len() int {
-	return MinInt(lrs.GetLimit(), lrs.InnerSeries.Len()-lrs.GetOffset())
+	return util.Math.MinInt(lrs.GetLimit(), lrs.InnerSeries.Len()-lrs.GetOffset())
 }
 
 // GetLimit returns the window size.
@@ -74,7 +56,7 @@ func (lrs LinearRegressionSeries) GetLimit() int {
 func (lrs LinearRegressionSeries) GetEndIndex() int {
 	windowEnd := lrs.GetOffset() + lrs.GetLimit()
 	innerSeriesLastIndex := lrs.InnerSeries.Len() - 1
-	return MinInt(windowEnd, innerSeriesLastIndex)
+	return util.Math.MinInt(windowEnd, innerSeriesLastIndex)
 }
 
 // GetOffset returns the data offset.
@@ -90,25 +72,12 @@ func (lrs *LinearRegressionSeries) GetValues(index int) (x, y float64) {
 	if lrs.InnerSeries == nil || lrs.InnerSeries.Len() == 0 {
 		return
 	}
-	if lrs.IsZero() {
+	if lrs.m == 0 && lrs.b == 0 {
 		lrs.computeCoefficients()
 	}
 	offset := lrs.GetOffset()
-	effectiveIndex := MinInt(index+offset, lrs.InnerSeries.Len())
+	effectiveIndex := util.Math.MinInt(index+offset, lrs.InnerSeries.Len())
 	x, y = lrs.InnerSeries.GetValues(effectiveIndex)
-	y = (lrs.m * lrs.normalize(x)) + lrs.b
-	return
-}
-
-// GetFirstValues computes the first linear regression value.
-func (lrs *LinearRegressionSeries) GetFirstValues() (x, y float64) {
-	if lrs.InnerSeries == nil || lrs.InnerSeries.Len() == 0 {
-		return
-	}
-	if lrs.IsZero() {
-		lrs.computeCoefficients()
-	}
-	x, y = lrs.InnerSeries.GetValues(0)
 	y = (lrs.m * lrs.normalize(x)) + lrs.b
 	return
 }
@@ -118,7 +87,7 @@ func (lrs *LinearRegressionSeries) GetLastValues() (x, y float64) {
 	if lrs.InnerSeries == nil || lrs.InnerSeries.Len() == 0 {
 		return
 	}
-	if lrs.IsZero() {
+	if lrs.m == 0 && lrs.b == 0 {
 		lrs.computeCoefficients()
 	}
 	endIndex := lrs.GetEndIndex()
@@ -126,29 +95,6 @@ func (lrs *LinearRegressionSeries) GetLastValues() (x, y float64) {
 	y = (lrs.m * lrs.normalize(x)) + lrs.b
 	return
 }
-
-// Render renders the series.
-func (lrs *LinearRegressionSeries) Render(r Renderer, canvasBox Box, xrange, yrange Range, defaults Style) {
-	style := lrs.Style.InheritFrom(defaults)
-	Draw.LineSeries(r, canvasBox, xrange, yrange, style, lrs)
-}
-
-// Validate validates the series.
-func (lrs *LinearRegressionSeries) Validate() error {
-	if lrs.InnerSeries == nil {
-		return fmt.Errorf("linear regression series requires InnerSeries to be set")
-	}
-	return nil
-}
-
-// IsZero returns if we've computed the coefficients or not.
-func (lrs *LinearRegressionSeries) IsZero() bool {
-	return lrs.m == 0 && lrs.b == 0
-}
-
-//
-// internal helpers
-//
 
 func (lrs *LinearRegressionSeries) normalize(xvalue float64) float64 {
 	return (xvalue - lrs.avgx) / lrs.stddevx
@@ -161,14 +107,14 @@ func (lrs *LinearRegressionSeries) computeCoefficients() {
 
 	p := float64(endIndex - startIndex)
 
-	xvalues := NewValueBufferWithCapacity(lrs.Len())
+	xvalues := seq.NewBufferWithCapacity(lrs.Len())
 	for index := startIndex; index < endIndex; index++ {
 		x, _ := lrs.InnerSeries.GetValues(index)
 		xvalues.Enqueue(x)
 	}
 
-	lrs.avgx = Seq{xvalues}.Average()
-	lrs.stddevx = Seq{xvalues}.StdDev()
+	lrs.avgx = seq.Seq{Provider: xvalues}.Average()
+	lrs.stddevx = seq.Seq{Provider: xvalues}.StdDev()
 
 	var sumx, sumy, sumxx, sumxy float64
 	for index := startIndex; index < endIndex; index++ {
@@ -184,4 +130,18 @@ func (lrs *LinearRegressionSeries) computeCoefficients() {
 
 	lrs.m = (p*sumxy - sumx*sumy) / (p*sumxx - sumx*sumx)
 	lrs.b = (sumy / p) - (lrs.m * sumx / p)
+}
+
+// Render renders the series.
+func (lrs *LinearRegressionSeries) Render(r Renderer, canvasBox Box, xrange, yrange Range, defaults Style) {
+	style := lrs.Style.InheritFrom(defaults)
+	Draw.LineSeries(r, canvasBox, xrange, yrange, style, lrs)
+}
+
+// Validate validates the series.
+func (lrs *LinearRegressionSeries) Validate() error {
+	if lrs.InnerSeries == nil {
+		return fmt.Errorf("linear regression series requires InnerSeries to be set")
+	}
+	return nil
 }
